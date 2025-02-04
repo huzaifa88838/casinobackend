@@ -8,19 +8,17 @@ const app = express()
 app.use(cookieParser())
 
 
-
 const corsOptions = {
-    origin: process.env.FRONTEND_URL, // Your frontend's URL
-    methods: ['GET', 'POST', 'PUT'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,  // Allow credentials (cookies, tokens)
-  };
-  
-  app.use(cors(corsOptions));
-  
+  origin: ["https://nonalexch.com", "https://www.nonalexch.com"], // Multiple allowed origins
+  methods: ['GET', 'POST', 'PUT'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,  
+};
+
+app.use(cors(corsOptions));
 
   
-  app.use(cors(corsOptions));
+  // app.use(cors(corsOptions));
   
 app.use(express.json({limit:"16kb"}))
 
