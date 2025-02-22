@@ -1,6 +1,6 @@
 // routes/user.routes.js
 import { Router } from "express";
-import { loginUser, registerUser, logoutUser, userStatus, getUserDetails, getAllUsers ,forgotPassword, resetPassword, updateDeposit, getUserDeposit, createWithdrawalRequest, getAllWithdrawals ,changePassword,updateWithdrawPin} from "../controller/user.controller.js";
+import { loginUser, registerUser, logoutUser, userStatus, getUserDetails, getAllusers ,forgotPassword, resetPassword ,changePassword, getAllMasters, getAllagents, deleteUser, updateUser} from "../controller/user.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 
 
@@ -11,13 +11,18 @@ router.route("/login").post(loginUser);
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/status").get(verifyJWT, userStatus);
 router.route("/getuser/:userId").get(verifyJWT, getUserDetails); // Correct route for fetching user details
-router.route("/getalluser").get( getAllUsers);
-router.route("/updatedeposit").post(updateDeposit)
-router.route("/userdeposit").get(verifyJWT,getUserDeposit)
-router.route("/createwithdraw").post(verifyJWT,createWithdrawalRequest )
-router.route("/allwithdrawls").get(getAllWithdrawals)
+// router.route("/getalluser").get( getAllUsers);
+router.route("/master").get(getAllMasters)
+router.route("/agent").get(getAllagents)
+router.route("/user").get(getAllusers)
+router.route("/deleteuser/:id").delete(deleteUser)
+router.route("/updateuser/:id").put(updateUser)
+
+
+
+
+
 router.route("/updatepassword").put(verifyJWT,changePassword)
-router.route("/update-withdraw-pin").put(verifyJWT,updateWithdrawPin)
 
 
 // Get order(s) for a specific user

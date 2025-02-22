@@ -12,10 +12,9 @@ const userschema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    username: {  // Added username field
+    username: {
       type: String,
       required: true,
-     
       trim: true,
     },
     fullname: {
@@ -31,30 +30,32 @@ const userschema = new mongoose.Schema(
     refreshToken: {
       type: String,
     },
-  phonenumber:{
-    type: Number,
-    required: true,
-  },
-    // Added address-related fields
-    
-   
-   
-   
+    phonenumber: {
+      type: Number,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["admin", "master", "agent", "user"],
+      default: "user", // Default role is "user"
+    },
   },
   { timestamps: true }
 );
 
+// Password Hashing Before Saving
 userschema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
+// Password Checking
 userschema.methods.ispasswordcorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
 
+// Generate Access Token (Includes Role)
 userschema.methods.generateAccessToken = function () {
   return jwt.sign(
     {
@@ -62,14 +63,14 @@ userschema.methods.generateAccessToken = function () {
       username: this.username,
       fullname: this.fullname,
       email: this.email,
-    withdrawpin:this.withdrawpin
+      role: this.role, // Adding role to token
     },
     process.env.ACCESS_TOKEN_SECRET,
-     { expiresIn: "1h" }
+    { expiresIn: "1h" }
   );
 };
 
-// Generate a refresh token
+// Generate Refresh Token
 userschema.methods.generateRefreshToken = function () {
   return jwt.sign(
     { _id: this._id },

@@ -4,7 +4,6 @@ import { User } from "../models/user.js";
 import { ApiResponse } from "../utils/apiresponse.js";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import Withdrawal from "../models/withdraw.js"
 
 
 import mongoose from "mongoose"
@@ -35,44 +34,36 @@ const generateAccessAndRefereshTokens = async(userId) =>{
 }
 
 const registerUser = asyncHandler(async (req, res) => {
-  const {
-    username,
-    fullname,
-    email,
-  phonenumber,
-    password,
-   
-    
-  } = req.body;
+  const { username, fullname, email, phonenumber, password, role } = req.body;
 
   // Validate required fields
-  if (![username, fullname, email, phonenumber, password,].some(field => field?.trim() !== "")) {
+  if (![username, fullname, email, phonenumber, password].every(field => field?.trim() !== "")) {
     throw new ApiError(400, "All fields are required");
   }
 
-  // if (!/\S+@\S+\.\S+/.test(email)) {
-  //   throw new ApiError(400, "Valid email is required");
-  // }
-
-  const existedUser = await User.findOne({
-    $or: [{ email: email || null }]
-  });
-
-  if (existedUser) {
-    throw new ApiError(409, "User with email or username already exists");
+  // Validate the role
+  if (!["admin", "master", "agent", "user"].includes(role)) {
+    throw new ApiError(400, "Invalid role");
   }
 
+  // Check if the email already exists
+  const existedUser = await User.findOne({ email });
+
+  if (existedUser) {
+    throw new ApiError(409, "User with this email already exists");
+  }
+
+  // Creating the user without authentication requirement
   const user = await User.create({
     username,
     fullname,
-   
     phonenumber,
     email,
     password,
-  
-   
+    role, // Set role as provided
   });
 
+  // Exclude password from response
   const createdUser = await User.findById(user._id).select("-password -refreshToken");
 
   if (!createdUser) {
@@ -83,6 +74,8 @@ const registerUser = asyncHandler(async (req, res) => {
     new ApiResponse(200, createdUser, "User registered successfully")
   );
 });
+
+
 
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -218,7 +211,45 @@ const getAllUsers = asyncHandler(async (req, res) => {
       new ApiResponse(200, users, "All users details retrieved successfully")
     );
   });
+  const getAllMasters = asyncHandler(async (req, res) => {
+    try {
+      const masters = await User.find({ role: "master" }).select("-password -refreshToken");
   
+      if (!masters.length) {
+        throw new ApiError(404, "No masters found");
+      }
+  
+      return res.status(200).json(new ApiResponse(200, masters, "Masters retrieved successfully"));
+    } catch (error) {
+      throw new ApiError(500, "Something went wrong while fetching masters");
+    }
+  });
+  const getAllagents = asyncHandler(async (req, res) => {
+    try {
+      const masters = await User.find({ role: "agent" }).select("-password -refreshToken");
+  
+      if (!masters.length) {
+        throw new ApiError(404, "No masters found");
+      }
+  
+      return res.status(200).json(new ApiResponse(200, masters, "Masters retrieved successfully"));
+    } catch (error) {
+      throw new ApiError(500, "Something went wrong while fetching masters");
+    }
+  });
+    const getAllusers = asyncHandler(async (req, res) => {
+    try {
+      const masters = await User.find({ role: "user" }).select("-password -refreshToken");
+  
+      if (!masters.length) {
+        throw new ApiError(404, "No masters found");
+      }
+  
+      return res.status(200).json(new ApiResponse(200, masters, "Masters retrieved successfully"));
+    } catch (error) {
+      throw new ApiError(500, "Something went wrong while fetching masters");
+    }
+  });
   const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
   
@@ -311,118 +342,14 @@ const getAllUsers = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, null, "Password reset successful"));
   });
 
-  export const updateDeposit = async (req, res) => {
-    try {
-      const { userId, currency, amount } = req.body;
-  
-      // Validate that the userId is a valid ObjectId format
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return res.status(400).json({ message: "Invalid userId format" });
-      }
-  
-      // Convert userId to ObjectId
-      const userObjectId = new mongoose.Types.ObjectId(userId);
-  
-      // Find the user
-      const user = await User.findById(userObjectId);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-  
-      // Ensure that amount is negative for deduction
-      if (amount < 0) {
-        // Check if user has enough balance for the deduction
-        if (currency === "usdt" && user.deposit.usdt < Math.abs(amount)) {
-          return res.status(400).json({ message: "Insufficient USDT balance" });
-        }
-        if (currency === "trx" && user.deposit.trx < Math.abs(amount)) {
-          return res.status(400).json({ message: "Insufficient TRX balance" });
-        }
-      }
-  
-      // Update the deposit (deduct the amount)
-      await user.updateDeposit(currency, amount);
-  
-      res.status(200).json({ message: "Deposit updated successfully", deposit: user.deposit });
-    } catch (error) {
-      res.status(500).json({ message: "Error updating deposit", error: error.message });
-    }
-  };
+ 
   
   
-  const getUserDeposit = asyncHandler(async (req, res) => {
-    try {
-      const userId = req.user._id; // User ID from JWT payload
-  
-      // Fetch user and exclude sensitive fields
-      const user = await User.findById(userId).select("deposit");
-  
-      if (!user) {
-        return res.status(408).json({ message: "User not found" });
-      }
-  
-      // Respond with deposit details
-      res.status(200).json({
-        status: 200,
-        data: { deposit: user.deposit },
-        message: "User deposit details retrieved successfully",
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Error retrieving deposit details", error: error.message });
-    }
-  });
-  const createWithdrawalRequest = asyncHandler(async (req, res) => {
-    const { userId, selectedNetwork, withdrawAmount, address, receiveAmount, withdrawPin } = req.body;
-  
-    // Validate required fields
-    if (![userId, selectedNetwork, withdrawAmount, address, receiveAmount, withdrawPin].every(field => field?.trim() !== "")) {
-      throw new ApiError(400, "All fields are required");
-    }
-  
-    // Validate withdrawal pin (in real-world scenarios, you would hash it)
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-  
-    if (user.withdrawpin !== withdrawPin) {
-      throw new ApiError(400, "Incorrect withdraw pin");
-    }
-  
-    // Create the withdrawal request
-    const withdrawal = await Withdrawal.create({
-      userId,
-      selectedNetwork,
-      withdrawAmount,
-      address,
-      receiveAmount,
-      withdrawPin,
-    });
-  
-    return res.status(201).json(new ApiResponse(200, withdrawal, "Withdrawal request created successfully"));
-  });
+ 
+ 
   
   // Get a specific withdrawal request
-  const getWithdrawalRequest = asyncHandler(async (req, res) => {
-    const { withdrawalId } = req.params;
-  
-    const withdrawal = await Withdrawal.findById(withdrawalId).populate('userId', 'username email');
-  
-    if (!withdrawal) {
-      throw new ApiError(404, "Withdrawal request not found");
-    }
-  
-    return res.status(200).json(new ApiResponse(200, withdrawal, "Withdrawal request retrieved successfully"));
-  });
-  const getAllWithdrawals = asyncHandler(async (req, res) => {
-    const withdrawals = await Withdrawal.find().populate('userId', 'username email');
-  
-    if (!withdrawals.length) {
-      throw new ApiError(404, "No withdrawal requests found");
-    }
-  
-    return res.status(200).json(new ApiResponse(200, withdrawals, "All withdrawal requests retrieved successfully"));
-  });
+
   const changePassword = asyncHandler(async (req, res) => {
     const { oldPassword, newPassword } = req.body;
   
@@ -452,38 +379,54 @@ const getAllUsers = asyncHandler(async (req, res) => {
       new ApiResponse(200, null, "Password changed successfully")
     );
   });
-  export const updateWithdrawPin = asyncHandler(async (req, res) => {
-    const { userId, newWithdrawPin } = req.body;
+ 
+ const deleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Validate if user ID exists
+  if (!id) {
+    throw new ApiError(400, "User ID is required");
+  }
+
+  // Check if the user exists
+  const user = await User.findById(id);
   
-    // Validate inputs
-    if (!userId || !newWithdrawPin) {
-      throw new ApiError(400, "User ID and new withdraw pin are required");
-    }
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Delete the user
+  await user.deleteOne();
+
+  return res.status(200).json(new ApiResponse(200, null, "User deleted successfully"));
+});
+const updateUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { username, fullname, email, phonenumber, password, role } = req.body;
+
+  // Check if the user exists
+  const user = await User.findById(id);
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Update user details
+  user.username = username || user.username;
+  user.fullname = fullname || user.fullname;
+  user.email = email || user.email;
+  user.phonenumber = phonenumber || user.phonenumber;
+  if (password) user.password = password;  // Add password handling if needed
+  user.role = role || user.role;
+
+  await user.save();
+
+  // Exclude password from the response
+  const updatedUser = await User.findById(user._id).select("-password -refreshToken");
+
+  return res.status(200).json(new ApiResponse(200, updatedUser, "User updated successfully"));
+});
+
   
-    // Validate that the userId is a valid ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      throw new ApiError(400, "Invalid userId format");
-    }
-  
-    // Convert userId to ObjectId
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-  
-    // Find the user
-    const user = await User.findById(userObjectId);
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
-  
-    // Update the withdraw pin
-    user. withdrawPin = newWithdrawPin;
-    await user.save({ validateBeforeSave: false });
-  
-    return res.status(200).json(
-      new ApiResponse(200, null, "Withdraw pin updated successfully")
-    );
-  });
-  
-  
-export { registerUser, loginUser, logoutUser,userStatus,getAllUsers,getUserDetails,forgotPassword,resetPassword,getUserDeposit,createWithdrawalRequest,getWithdrawalRequest,getAllWithdrawals,changePassword };
+export { registerUser, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser };
 
 
