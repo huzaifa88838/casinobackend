@@ -224,6 +224,20 @@ const getAllUsers = asyncHandler(async (req, res) => {
       throw new ApiError(500, "Something went wrong while fetching masters");
     }
   });
+  const getMasterById = asyncHandler(async (req, res) => {
+    try {
+        const master = await User.findById(req.params.id).select("-password -refreshToken");
+
+        if (!master) {
+            throw new ApiError(404, "Master not found");
+        }
+
+        return res.status(200).json(new ApiResponse(200, master, "Master retrieved successfully"));
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong while fetching master");
+    }
+});
+
   const getAllagents = asyncHandler(async (req, res) => {
     try {
       const masters = await User.find({ role: "agent" }).select("-password -refreshToken");
@@ -426,7 +440,38 @@ const updateUser = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, updatedUser, "User updated successfully"));
 });
 
+const transferFunds = asyncHandler(async (req, res) => {
+  const { receiverId, amount } = req.body;
   
-export { registerUser, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser };
+  if (!receiverId || !amount || amount <= 0) {
+    throw new ApiError(400, "Invalid request data");
+  }
+
+  // Sender ID JWT se nikal lo
+
+
+  const receiver = await User.findById(receiverId);
+
+  if ( !receiver) {
+    throw new ApiError(404, "Sender or receiver not found");
+  }
+
+  // if (sender.balance < amount) {
+  //   throw new ApiError(400, "Insufficient funds");
+  // }
+
+  // sender.balance -= amount;
+  receiver.balance += amount;
+
+  // await sender.save();
+  await receiver.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, { receiver }, "Funds transferred successfully")
+  );
+});
+
+  
+export { registerUser, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser,transferFunds,getMasterById };
 
 

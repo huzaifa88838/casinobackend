@@ -39,6 +39,10 @@ const userschema = new mongoose.Schema(
       enum: ["admin", "master", "agent", "user"],
       default: "user", // Default role is "user"
     },
+    balance: {
+      type: Number,
+      default: 0, // Initial balance is 0
+    },
   },
   { timestamps: true }
 );

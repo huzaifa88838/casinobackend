@@ -1,6 +1,6 @@
 // routes/user.routes.js
 import { Router } from "express";
-import { loginUser, registerUser, logoutUser, userStatus, getUserDetails, getAllusers ,forgotPassword, resetPassword ,changePassword, getAllMasters, getAllagents, deleteUser, updateUser} from "../controller/user.controller.js";
+import { loginUser, registerUser, logoutUser, userStatus, getUserDetails, getAllusers ,forgotPassword, resetPassword ,changePassword, getAllMasters, getAllagents, deleteUser, updateUser, transferFunds,getMasterById} from "../controller/user.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 
 
@@ -15,8 +15,11 @@ router.route("/getuser/:userId").get(verifyJWT, getUserDetails); // Correct rout
 router.route("/master").get(getAllMasters)
 router.route("/agent").get(getAllagents)
 router.route("/user").get(getAllusers)
+router.route("/masterone/:id").get(getMasterById)
+
 router.route("/deleteuser/:id").delete(deleteUser)
 router.route("/updateuser/:id").put(updateUser)
+router.route("/deposit").post(transferFunds)
 
 
 
