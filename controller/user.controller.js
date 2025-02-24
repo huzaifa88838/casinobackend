@@ -441,14 +441,45 @@ const updateUser = asyncHandler(async (req, res) => {
 });
 
 const transferFunds = asyncHandler(async (req, res) => {
-  const { receiverId, amount } = req.body;
+  const { receiverId, amount,senderId } = req.body;
+
+  if (!receiverId || !amount || amount <= 0) {
+    throw new ApiError(400, "Invalid request data");
+  }
+
+  const sender = await User.findById(senderId);
+  const receiver = await User.findById(receiverId);
+
+  if (!sender || !receiver) {
+    throw new ApiError(404, "Sender or receiver not found");
+  }
+
+  // Check if sender is either "master" or "agent" and has sufficient balance
+  if ((sender.role === "master" || sender.role === "agent") && sender.balance < amount) {
+    throw new ApiError(400, "Insufficient funds");
+  }
+
+  sender.balance -= amount;
+  receiver.balance += amount;
+
+  await sender.save();
+  await receiver.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, { sender, receiver }, "Funds transferred successfully")
+  );
+});
+
+
+const transferadmin = asyncHandler(async (req, res) => {
+  const { receiverId, amount} = req.body;
   
   if (!receiverId || !amount || amount <= 0) {
     throw new ApiError(400, "Invalid request data");
   }
 
-  // Sender ID JWT se nikal lo
-
+  // JWT se sender ID extract karo
+   // Assume kar rahe hain ke user JWT se mil raha hai
 
   const receiver = await User.findById(receiverId);
 
@@ -456,22 +487,19 @@ const transferFunds = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Sender or receiver not found");
   }
 
-  // if (sender.balance < amount) {
-  //   throw new ApiError(400, "Insufficient funds");
-  // }
+  // Agar sender ka role "master" hai to balance check karo
 
-  // sender.balance -= amount;
+
   receiver.balance += amount;
 
-  // await sender.save();
   await receiver.save();
 
   return res.status(200).json(
-    new ApiResponse(200, { receiver }, "Funds transferred successfully")
+    new ApiResponse(200, {  receiver }, "Funds transferred successfully")
   );
 });
 
   
-export { registerUser, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser,transferFunds,getMasterById };
+export { registerUser, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser,transferFunds,getMasterById,transferadmin };
 
 

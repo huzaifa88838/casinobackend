@@ -10,8 +10,8 @@ app.use(cookieParser())
 
 
 const corsOptions = {
-  origin: ["https://nonalexch.com", "https://www.nonalexch.com"], // Multiple allowed origins
-  // origin:["http://localhost:5173"],
+  // origin: ["https://nonalexch.com", "https://www.nonalexch.com"], // Multiple allowed origins
+  origin:["http://localhost:5173"],
   methods: ['GET', 'POST', 'PUT','DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,  
