@@ -34,6 +34,56 @@ const generateAccessAndRefereshTokens = async(userId) =>{
 }
 
 const registerUser = asyncHandler(async (req, res) => {
+  const { username, fullname, email, phonenumber, password, role, masterId, agentId } = req.body;
+
+  // Validate required fields
+  if (![username, fullname, email, phonenumber, password].every(field => field?.trim() !== "")) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  // Validate the role
+  if (!["admin", "master", "agent", "user"].includes(role)) {
+    throw new ApiError(400, "Invalid role");
+  }
+
+  // Check if the email already exists
+  const existedUser = await User.findOne({ email });
+  if (existedUser) {
+    throw new ApiError(409, "User with this email already exists");
+  }
+
+  // Determine createdBy field
+  let createdBy = null;
+  if (role === "agent") {
+    createdBy = masterId || null; // Agent is created by a master
+  } else if (role === "user") {
+    createdBy = agentId || null; // User is created by agent or master
+  }
+
+  // Creating the user without authentication requirement
+  const user = await User.create({
+    username,
+    fullname,
+    phonenumber,
+    email,
+    password,
+    role,
+    createdBy, // Assign createdBy field dynamically
+  });
+
+  // Exclude password from response
+  const createdUser = await User.findById(user._id).select("-password -refreshToken");
+
+  if (!createdUser) {
+    throw new ApiError(500, "Something went wrong while registering the user");
+  }
+
+  return res.status(201).json(
+    new ApiResponse(200, createdUser, "User registered successfully")
+  );
+});
+
+const registerUserbyadmin = asyncHandler(async (req, res) => {
   const { username, fullname, email, phonenumber, password, role } = req.body;
 
   // Validate required fields
@@ -61,6 +111,7 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password,
     role, // Set role as provided
+
   });
 
   // Exclude password from response
@@ -74,7 +125,6 @@ const registerUser = asyncHandler(async (req, res) => {
     new ApiResponse(200, createdUser, "User registered successfully")
   );
 });
-
 
 
 
@@ -238,32 +288,60 @@ const getAllUsers = asyncHandler(async (req, res) => {
     }
 });
 
-  const getAllagents = asyncHandler(async (req, res) => {
-    try {
-      const masters = await User.find({ role: "agent" }).select("-password -refreshToken");
-  
-      if (!masters.length) {
-        throw new ApiError(404, "No masters found");
-      }
-  
-      return res.status(200).json(new ApiResponse(200, masters, "Masters retrieved successfully"));
-    } catch (error) {
-      throw new ApiError(500, "Something went wrong while fetching masters");
+const getAllagents = asyncHandler(async (req, res) => {
+  try {
+    const { masterId } = req.query; // Get masterId from query instead of body
+
+    if (!masterId) {
+      throw new ApiError(400, "Master ID is required");
     }
-  });
-    const getAllusers = asyncHandler(async (req, res) => {
-    try {
-      const masters = await User.find({ role: "user" }).select("-password -refreshToken");
-  
-      if (!masters.length) {
-        throw new ApiError(404, "No masters found");
-      }
-  
-      return res.status(200).json(new ApiResponse(200, masters, "Masters retrieved successfully"));
-    } catch (error) {
-      throw new ApiError(500, "Something went wrong while fetching masters");
+
+    const agents = await User.find({ role: "agent", createdBy: masterId })
+      .select("-password -refreshToken");
+
+    if (!agents.length) {
+      throw new ApiError(404, "No agents found for this master");
     }
-  });
+
+    return res.status(200).json(new ApiResponse(200, agents, "Agents retrieved successfully"));
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong while fetching agents");
+  }
+});
+
+const getAllusers = asyncHandler(async (req, res) => {
+  try {
+    const { role, userId } = req.query; // userId will be masterId or agentId
+
+    if (!role || !userId) {
+      throw new ApiError(400, "Role and User ID are required");
+    }
+
+    let users;
+
+    if (role === "agent") {
+      // Agent ko sirf wo users dikhaye jo usne khud banaye hain
+      users = await User.find({ role: "user", createdBy: userId }).select("-password -refreshToken");
+    } else if (role === "master") {
+      // Master ko wo users dikhaye jo uske agents ne banaye hain
+      const agents = await User.find({ role: "agent", createdBy: userId }).select("_id");
+      const agentIds = agents.map(agent => agent._id);
+
+      users = await User.find({ role: "user", createdBy: { $in: agentIds } }).select("-password -refreshToken");
+    } else {
+      throw new ApiError(403, "Unauthorized role access");
+    }
+
+    if (!users.length) {
+      throw new ApiError(404, "No users found");
+    }
+
+    return res.status(200).json(new ApiResponse(200, users, "Users retrieved successfully"));
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong while fetching users",error);
+  }
+});
+
   const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
   
@@ -500,6 +578,5 @@ const transferadmin = asyncHandler(async (req, res) => {
 });
 
   
-export { registerUser, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser,transferFunds,getMasterById,transferadmin };
-
+export { registerUser,registerUserbyadmin, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser,transferFunds,getMasterById,transferadmin };
 

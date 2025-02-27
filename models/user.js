@@ -43,6 +43,7 @@ const userschema = new mongoose.Schema(
       type: Number,
       default: 0, // Initial balance is 0
     },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
   },
   { timestamps: true }
 );
