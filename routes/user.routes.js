@@ -1,6 +1,6 @@
 // routes/user.routes.js
 import { Router } from "express";
-import { loginUser, registerUser, logoutUser, userStatus, getUserDetails, getAllusers ,forgotPassword, resetPassword ,changePassword, getAllMasters, getAllagents, deleteUser, updateUser, transferFunds,getMasterById, transferadmin} from "../controller/user.controller.js";
+import { loginUser, registerUser, logoutUser, userStatus, getUserDetails, getAllusers ,forgotPassword, resetPassword ,changePassword, getAllMasters, getAllagents, deleteUser, updateUser, transferFunds,getMasterById, transferadmin, getAllusersforadmin, getAllagentsforadmin} from "../controller/user.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 
 
@@ -22,6 +22,8 @@ router.route("/updateuser/:id").put(updateUser)
 router.route("/deposit").post(transferFunds)
 router.route("/depositadmin").post(transferadmin)
 
+router.route("/allusersforadmin").get(getAllusersforadmin)
+router.route("/allagentsforadmin").get(getAllagentsforadmin)
 
 
 

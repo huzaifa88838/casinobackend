@@ -308,6 +308,28 @@ const getAllagents = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while fetching agents");
   }
 });
+const getAllagentsforadmin = asyncHandler(async (req, res) => {
+  try {
+    // Sirf agents fetch karne ke liye filter
+    const agents = await User.find({ role: "agent" }).select("-password -refreshToken");
+
+    return res.status(200).json(new ApiResponse(200, agents, "Agents retrieved successfully"));
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong while fetching agents", error);
+  }
+});
+
+const getAllusersforadmin = asyncHandler(async (req, res) => {
+  try {
+    // Sirf agents fetch karne ke liye filter
+    const agents = await User.find({ role: "user" }).select("-password -refreshToken");
+
+    return res.status(200).json(new ApiResponse(200, agents, "Agents retrieved successfully"));
+  } catch (error) {
+    throw new ApiError(500, "Something went wrong while fetching agents", error);
+  }
+});
+
 
 const getAllusers = asyncHandler(async (req, res) => {
   try {
@@ -578,5 +600,5 @@ const transferadmin = asyncHandler(async (req, res) => {
 });
 
   
-export { registerUser,registerUserbyadmin, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser,transferFunds,getMasterById,transferadmin };
+export { registerUser,getAllagentsforadmin,getAllusersforadmin, loginUser, logoutUser,userStatus,getUserDetails,forgotPassword,resetPassword,changePassword,getAllMasters,getAllagents,getAllusers,deleteUser,updateUser,transferFunds,getMasterById,transferadmin };
 
