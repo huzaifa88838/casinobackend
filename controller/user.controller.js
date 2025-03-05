@@ -310,23 +310,69 @@ const getAllagents = asyncHandler(async (req, res) => {
 });
 const getAllagentsforadmin = asyncHandler(async (req, res) => {
   try {
-    // Sirf agents fetch karne ke liye filter
-    const agents = await User.find({ role: "agent" }).select("-password -refreshToken");
+    // Fetch all agents
+    const agents = await User.find({ role: "agent" })
+      .select("-password -refreshToken")
+      .lean(); // Convert Mongoose documents to plain objects for easier manipulation
 
-    return res.status(200).json(new ApiResponse(200, agents, "Agents retrieved successfully"));
+    if (!agents.length) {
+      throw new ApiError(404, "No agents found");
+    }
+
+    // Fetch master details for each agent
+    const masterIds = agents.map(agent => agent.createdBy).filter(id => id); // Get unique master IDs
+    const masters = await User.find({ _id: { $in: masterIds } }).select("fullname"); // Fetch masters by ID
+
+    // Convert master list into a lookup object (id -> name)
+    const masterMap = {};
+    masters.forEach(master => {
+      masterMap[master._id] = master.fullname;
+    });
+
+    // Attach master names to agents
+    const agentsWithMasters = agents.map(agent => ({
+      ...agent,
+      masterName: masterMap[agent.createdBy] || "N/A", // Assign master name or "N/A" if not found
+    }));
+
+    return res.status(200).json(new ApiResponse(200, agentsWithMasters, "Agents with master names retrieved successfully"));
   } catch (error) {
-    throw new ApiError(500, "Something went wrong while fetching agents", error);
+    throw new ApiError(500, "Something went wrong while fetching agents for admin");
   }
 });
 
+
+
 const getAllusersforadmin = asyncHandler(async (req, res) => {
   try {
-    // Sirf agents fetch karne ke liye filter
-    const agents = await User.find({ role: "user" }).select("-password -refreshToken");
+    // Fetch all agents
+    const agents = await User.find({ role: "user" })
+      .select("-password -refreshToken")
+      .lean(); // Convert Mongoose documents to plain objects for easier manipulation
 
-    return res.status(200).json(new ApiResponse(200, agents, "Agents retrieved successfully"));
+    if (!agents.length) {
+      throw new ApiError(404, "No agents found");
+    }
+
+    // Fetch master details for each agent
+    const masterIds = agents.map(agent => agent.createdBy).filter(id => id); // Get unique master IDs
+    const masters = await User.find({ _id: { $in: masterIds } }).select("fullname"); // Fetch masters by ID
+
+    // Convert master list into a lookup object (id -> name)
+    const masterMap = {};
+    masters.forEach(master => {
+      masterMap[master._id] = master.fullname;
+    });
+
+    // Attach master names to agents
+    const agentsWithMasters = agents.map(agent => ({
+      ...agent,
+      masterName: masterMap[agent.createdBy] || "N/A", // Assign master name or "N/A" if not found
+    }));
+
+    return res.status(200).json(new ApiResponse(200, agentsWithMasters, "Agents with master names retrieved successfully"));
   } catch (error) {
-    throw new ApiError(500, "Something went wrong while fetching agents", error);
+    throw new ApiError(500, "Something went wrong while fetching agents for admin");
   }
 });
 
@@ -343,13 +389,17 @@ const getAllusers = asyncHandler(async (req, res) => {
 
     if (role === "agent") {
       // Agent ko sirf wo users dikhaye jo usne khud banaye hain
-      users = await User.find({ role: "user", createdBy: userId }).select("-password -refreshToken");
+      users = await User.find({ role: "user", createdBy: userId })
+        .select("-password -refreshToken")
+        .populate("createdBy", "fullname"); // Agent ka naam fetch karo
     } else if (role === "master") {
       // Master ko wo users dikhaye jo uske agents ne banaye hain
       const agents = await User.find({ role: "agent", createdBy: userId }).select("_id");
       const agentIds = agents.map(agent => agent._id);
 
-      users = await User.find({ role: "user", createdBy: { $in: agentIds } }).select("-password -refreshToken");
+      users = await User.find({ role: "user", createdBy: { $in: agentIds } })
+        .select("-password -refreshToken")
+        .populate("createdBy", "fullname"); // Agent ka naam fetch karo
     } else {
       throw new ApiError(403, "Unauthorized role access");
     }
@@ -360,9 +410,11 @@ const getAllusers = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new ApiResponse(200, users, "Users retrieved successfully"));
   } catch (error) {
-    throw new ApiError(500, "Something went wrong while fetching users",error);
+    throw new ApiError(500, "Something went wrong while fetching users", error);
   }
 });
+
+
 
   const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
